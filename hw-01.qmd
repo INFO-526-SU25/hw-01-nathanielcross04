@@ -1,38 +1,721 @@
 ---
 title: "HW 01"
-author: "INSERT YOUR NAME HERE"
+subtitle: "INFO 526: Summer 2025"
+author: "Nathaniel Cross"
+date: 2025-05-29
 format: 
   html:
     embed-resources: true
 toc: true
+execute:
+  warning: false
+  message: false
+  error: false
 ---
 
 ## 0 - Setup
 
 ```{r setup}
-if (!require("pacman")) 
+if(!require(pacman))
   install.packages("pacman")
 
-# use this line for installing/loading
-# pacman::p_load() 
+pacman::p_load(tidyverse, 
+               glue,
+               scales,
+               countdown,
+               ggthemes,
+               gt,
+               palmerpenguins,
+               openintro,
+               ggrepel,
+               patchwork,
+               quantreg,
+               janitor,
+               colorspace,
+               broom,
+               fs)
 
 devtools::install_github("tidyverse/dsbox")
+
+# set theme for ggplot2
+ggplot2::theme_set(ggplot2::theme_minimal(base_size = 14))
+
+# set width of code output
+options(width = 65)
+
+# set figure parameters for knitr
+knitr::opts_chunk$set(
+  fig.width = 7,        # 7" width
+  fig.asp = 0.618,      # the golden ratio
+  fig.retina = 3,       # dpi multiplier for displaying HTML output on retina
+  fig.align = "center", # center align figures
+  dpi = 300             # higher dpi, sharper image
+)
 ```
 
 ## 1 - Road traffic accidents in Edinburgh
 
-```{r label-me-1}
+```{r question-1-code}
 
+# load in the data
+accidents <- read_csv("data/accidents.csv")
+
+# glimpse the data
+accidents |>
+  glimpse()
+
+# data wrangle
+accidents_wrangle <- accidents |>
+  mutate(
+      day_type = case_when(
+        day_of_week %in% c("Saturday", "Sunday") ~ "Weekend",
+        TRUE                                     ~ "Weekday"
+      )
+  )
+
+accidents_wrangle |>
+  glimpse()
+
+# create the plot
+accidents_wrangle |>
+  ggplot(aes(x = time)) +
+  geom_density(aes(fill= severity), alpha = 0.5) +
+  facet_wrap(~ day_type, ncol = 1) + # Source: Andrie 2012 (Stack Overflow)
+  scale_fill_manual(values = c("#aa93b0","#9ecac8", "#fef39f")) +
+  labs(
+    x = "Time of day",
+    y = "Density",
+    fill = "Severity",
+    title = "Number of accidents throughout the day",
+    subtitle = "By day of week and severity"
+  )
 ```
+
+This plot reveals interesting trends about the distribution of accidents in Edinburgh. On weekdays, there is a visible bimodal quality to the distribution of slight accidents (replicated to a degree when examining the distribution of all accident types), centered around regular commuting times (i.e. 09:00 and 17:00). I find it intriguing that on weekdays, fatal accidents peak midday instead of in the evenings. Even more intriging is the lack of fatal accidents on weekend nights, which surprises me as I would have thought that tjere would be more drunk/intoxicated drivers on weekend nights who then would cause more serious accidents. Weekend night accidents are more unimodal, with a single peak around 16:00 or 17:00, and both distributions of slight and serious accidents mirror each other similarly.
 
 ## 2 - NYC marathon winners
 
-```{r label-me-2}
+```{r question-2-part-a-code}
+
+# load in the data
+nyc_marathon <- read_csv("data/nyc_marathon.csv")
+
+# glimpse the data
+nyc_marathon |>
+  glimpse()
+
+# histogram
+nyc_marathon |>
+  ggplot(aes(x = time)) +
+  geom_histogram(fill = "deepskyblue3", bins = 15) +
+  labs(
+    x = "Completion time (hours)",
+    y = "Frequency",
+    title = "Distribution of NYC Marathon winners completion times",
+    subtitle = "From 1970 to 2020",
+    caption = "Source: OpenIntro"
+  )
+
+# box plot
+nyc_marathon |>
+  ggplot(aes(x = time)) +
+  geom_boxplot() +
+  labs(
+    x = "Completion time (hours)",
+    title = "Distribution of NYC Marathon winners completion times",
+    subtitle = "From 1970 to 2020",
+    caption = "Source: OpenIntro"
+  ) +
+  theme(
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank() # Source: Tidyverse
+  )
+```
+
+The histogram above does a great job of illustrating the bimodal nature of this distribution, with two centers at around 2:10 and 2:25 hours for completion—information which is lost in the box plot. For me, histograms allow for easier interpretation of density, as well. Contrastingly, the box plot does a better job of showing us the outliers in the dataset, which are hard to distinguish in the histogram. Additionally, due to the two peaks, visually estimating central tendency in the histogram is difficult, which is facilitated much better in the box plot due to the obvious delineation of the median.
+
+```{r question-2-part-b-code}
+
+# glimpse data
+nyc_marathon |>
+  glimpse()
+
+# plot
+nyc_marathon |>
+  ggplot(aes(x = time, fill = division)) +
+  geom_boxplot() +
+  facet_wrap(~ division, ncol = 1) + # Source: Andrie 2012 (Stack Overflow)
+  labs(
+    x = "Completion time (hours)",
+    title = "Distribution of NYC Marathon winners completion times",
+    subtitle = "From 1970 to 2020 by division",
+    caption = "Source: OpenIntro",
+    fill = "Division"
+  ) +
+  scale_fill_manual(values = c("chartreuse4","deepskyblue3")) +
+  theme(
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(), # Source: Tidyverse
+  ) +
+  guides(fill = "none") # Source: Andrew 2021 (StackOverflow)
+```
+
+The distribution of the quartiles (excluding outliers) of mens' and womens' NYC Marathon times are remarkably similar, with the obvious difference of female winners' times centered around 2:25 whereas male winners' are centered around approx. 2:10. The major difference between the two box plots is the outliers, with the womens' distribution having more and a larger spread of outliers than the mens' (skewing the distribution right).
+
+```{r question-2-part-c}
+
+# plot
+nyc_marathon |>
+  ggplot(aes(x = time, fill = division)) +
+  geom_boxplot() +
+  labs(
+    x = "Completion time (hours)",
+    title = "Distribution of NYC Marathon winners completion times",
+    subtitle = "From 1970 to 2020 by division",
+    caption = "Source: OpenIntro",
+    fill = "Division"
+  ) +
+  theme(
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(), # Source: Tidyverse
+  ) 
 
 ```
 
+The main source of redundancy I found in Plot 2B was the two separate plots induced by the faceting by division, which I addressed here by moving the distribution of both divisions onto one plot. I do not see any other forms of redundancy to eliminate from the above plot.
+
+```{r q2-part_d}
+
+# glimpse
+nyc_marathon |>
+  glimpse()
+
+nyc_marathon |>
+  view()
+
+# plot
+nyc_marathon |>
+  ggplot(aes(x = year, y = time, color = division, shape = division)) +
+  geom_point() +
+  geom_line(size = 1) +
+  labs(
+    x = "Year",
+    y = "Completion time (hours)",
+    color = "Division",
+    title = "NYC Marathon winners' completion times",
+    subtitle = "Over time",
+    caption = "Source: OpenIntro"
+  ) +
+  scale_color_manual(values = c("chartreuse4","deepskyblue3"))+
+  guides(color = guide_legend("Division"),
+       shape = guide_legend("Division")) # Source: Gazzelloni 2024 (StackOverflow)
+```
+
+This plot reveals interesting time-series information previously unseen in distributions that did not incorporating a time variable. More specifically, the sharp decrease in winners' marathon times regardless of gender is seen in the late 1970s, with womens' times decreasing much more than mens' times. There exists expected fluctuation in times between 1980 and 2010, before a gap is seen in 2012 due to the race cancellation due to Hurricane Sandy. There is also a gap in the 1970 womens' winner's time as there were no female finishers that year. Both of these gaps are not illustrated in previous plots. Finally, there is an interesting increase in winning times in 2020, which represents the virtual format adopted due to the COVID-19 pandemic.
+
 ## 3 - US counties
+
+```{r q3-part_a}
+
+# glimpse data
+county |>
+  glimpse()
+
+# analyze code
+ggplot(county) +
+  geom_point(aes(x = median_edu, y = median_hh_income)) +
+  geom_boxplot(aes(x = smoking_ban, y = pop2017))
+```
+
+This code creates the above plot: a dotplot of median education on median household income and a superimposed boxplot of 2017 population by status of smoking ban. While the code itself does work without causing an error, it does not make sense. Firstly, it does not create a visually appealing plot nor one that is easy to interpret given the lack of labels, scaling, and color. Additionally, the main reason this code does not make sense is because it is attempting to plot two different variables on each axis. On the x-axis this code is trying to plot median education and presence of a smoking ban simultaneously and on the y-axis, median household income and 2017 population are being plotted.
+
+```{r q3-part_b}
+
+# preferred plot:
+ggplot(county %>% filter(!is.na(median_edu))) + 
+  geom_point(aes(x = homeownership, y = poverty)) + 
+  facet_grid(. ~ median_edu)
+```
+
+I am personally able to interpret this plot better than the first plot shown in the HW instructions because it allows more space/scale for the independent and dependent variables by allocating a full scale to poverty instead of homeownership. This allows the viewer to parse out a greater degree of nuance in difference in poverty by homeownership and education status. However, I would say that time-series data would make more sense to be faceted into rows as the time scale is most important and the viewer wants to be able to make comparisons by time instead of the dependent variables.
+
+```{r q3-part_d}
+
+# glimpse data
+county |>
+  glimpse()
+
+# plot a
+county |>
+  ggplot(aes(x = homeownership, y = poverty)) +
+  geom_point() +
+  labs(
+    title = "Plot A"
+  )
+
+# plot b
+county |>
+  ggplot(aes(x = homeownership, y = poverty)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Plot B"
+  )
+
+# plot c
+county |>
+  ggplot(aes(x = homeownership, y = poverty, color = metro)) +
+  geom_point(color = "black") +
+  geom_smooth(method = "loess", se = FALSE, na.rm = FALSE, show.legend = FALSE) +
+  labs(
+    title = "Plot C"
+  ) +
+  scale_color_manual(values = c("yes" = "green", "no" = "green")) +
+  guides(fill = "none")
+
+# plot d
+county |>
+  ggplot(aes(x = homeownership, y = poverty, color = metro)) +
+  geom_smooth(method = "loess", se = FALSE, na.rm = FALSE, show.legend = FALSE) +
+  geom_point(color = "black") +
+  labs(
+    title = "Plot D"
+  ) +
+  scale_color_manual(values = c("yes" = "blue", "no" = "blue")) +
+  guides(fill = "none")
+
+# plot e
+county |>
+  ggplot(aes(x = homeownership, y = poverty)) +
+  geom_point(aes(color = metro)) +
+  geom_smooth(method = "loess", se = FALSE, na.rm = FALSE, aes(linetype = metro)) +
+  labs(
+    title = "Plot E"
+  ) 
+
+# plot f
+county |>
+  ggplot(aes(x = homeownership, y = poverty, color = metro)) +
+  geom_point(aes(color = metro)) +
+  geom_smooth(method = "loess", se = FALSE, na.rm = FALSE) +
+  labs(
+    title = "Plot F"
+  ) 
+
+# plot g
+county |>
+  ggplot(aes(x = homeownership, y = poverty)) +
+  geom_point(aes(color = metro)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Plot G"
+  )
+
+# plot h
+county |>
+  ggplot(aes(x = homeownership, y = poverty)) +
+  geom_point(aes(color = metro)) +
+  labs(
+    title = "Plot H"
+  )
+```
 
 ## 4 - Rental apartments in SF
 
-## 5 - Napoleon’s march.
+```{r q4-part_a}
+
+# load in the data
+credit <- read_csv("data/credit.csv")
+
+# glimpse the data
+credit |>
+  glimpse()
+
+# data wrangle: add identifying prefix to all obs in student and married vars (probably not the most elegant solution)
+credit$student = paste0('student: ', credit$student)
+credit$married = paste0('married: ', credit$married) # Source: csgillespie 2014 (StackOverflow)
+
+credit |>
+  glimpse()
+
+# plot
+credit |>
+  ggplot(aes(x = income, 
+             y = balance, 
+             color = student, 
+             shape = student)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_grid(student ~ married) +
+  labs(
+    x = "Income",
+    y = "Credit card balance"
+  ) +
+  scale_y_continuous(labels = label_dollar()) +
+  scale_x_continuous(labels = label_dollar(suffix = "K")) +
+  theme_minimal() +
+  theme(legend.position= "none", 
+        panel.border = element_rect(color = "black", fill = NA, size = 0.05),
+        strip.background = element_rect(color = "black", fill = "lightgray", size = 1)) # Source: Andrew 2021 (StackOverflow), Emman 2021 (StackOverflow)
+
+```
+
+The above plot reveals moderate positive relationships between income and credit card balances regardless of student or marital status. The relationship between these two variables does not vary much (visually, at least; examining the actual OLS models might reveal other findings) by student or marital status, with the possible exception of a greater slope of the OLS model of unmarried students, suggesting greater credit card balance for their income level.
+
+```{r q4-part_b}
+
+# run OLS model
+model <- lm(balance ~ income + student + married, data = credit)
+summary(model) # Source: Thieme 2021 (Towards Data Science)
+```
+
+The above model indicates that student status is a statistically significant predictor of credit card balance, while marital status is not. Using solely the plots created in part A, I would not have expected student to be statistically significant as to me there does not seem to be too much visual variation between students and non-students.
+
+```{r q4-part_c}
+
+# glimpse cols
+credit |>
+  glimpse()
+
+# wrangle
+credit$credit_utilization_perc <- credit$balance / credit$limit * 100 # Source: zx8754 2016 (StackOverflow)
+
+credit |>
+  view()
+
+# plot
+credit |>
+  ggplot(aes(x = income, 
+             y = credit_utilization_perc, 
+             color = student, 
+             shape = student)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_grid(student ~ married) +
+  labs(
+    x = "Income",
+    y = "Credit utilization"
+  ) +
+  scale_y_continuous(labels = label_dollar(prefix = "", suffix = "%")) +
+  scale_x_continuous(labels = label_dollar(suffix = "K")) +
+  theme_minimal() +
+  theme(legend.position= "none", 
+        panel.border = element_rect(color = "black", fill = NA, size = 0.05),
+        strip.background = element_rect(color = "black", fill = "lightgray", size = 1))
+
+```
+
+```{r q4_part-d}
+
+# run OLS model
+model <- lm(credit_utilization_perc ~ income + student + married, data = credit)
+summary(model) # Source: Thieme 2021 (Towards Data Science)
+```
+
+When examining credit card utilization instead of credit balance, student and marital status seem to have a much stronger impact on the relationship between income and utilization. Most interesting, students' credit utilization decreases as income increases. When examining marital status, single people are more likely to demonstrate more extreme changes to utilization as income increases (both positively and negatively, depending on student status), while married people are more constant in their utilization by income.
+
+## 5 - Napoleon’s march
+
+```{r q5}
+
+# load data
+napoleon <- read_rds("data/napoleon.rds")
+
+troops <- napoleon$troops
+cities <- napoleon$cities
+temps  <- napoleon$temperatures
+
+# glimpse data
+troops |>
+  glimpse()
+
+# wrangle
+troops_wrangle <- troops |>
+  mutate(
+  direction = fct_relevel(direction, "retreating", "advancing")
+)
+
+# plot the march
+march_plot <- ggplot(cities, aes(x = long, y = lat)) +
+  geom_path(
+    aes(size = survivors, 
+        colour = direction, 
+        group = group), 
+    data = troops_wrangle,
+    lineend = "round"
+  ) + 
+    geom_text(
+      aes(label = survivors), 
+      hjust = 1.5, 
+      vjust = 0, 
+      size = 2, 
+      data = troops_wrangle
+    ) +
+  geom_point() + 
+  geom_text(
+    aes(label = city), 
+    hjust=1, 
+    vjust=1, 
+    size=3) + 
+  scale_colour_manual(values = c("black","bisque2")) +
+  scale_x_continuous(limits = c(24, 39)) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Map representing the losses over time of French army troops during the Russian campaign, 1812-1813.\nConstructed by Charles Joseph Minard, Inspector General of Public Works retired.",
+    subtitle = "Paris, 20 November 1869"
+  ) +
+  theme(
+    axis.text.x=element_blank(),
+    axis.text.y=element_blank(),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    text = element_text(size = 10),
+    legend.position= "none") +
+  scale_size(range = c(0.5, 10))
+
+# wrangle temp data
+temps_wrangle <- temps |>
+  mutate(temp_day = glue("{temp}°C   {month}-{day}"))
+         
+temps_wrangle |>
+  view()
+
+# plot the temperatures
+temp_plot <- ggplot(data = temps_wrangle, aes(x = long, y = temp)) +
+  geom_line() +
+  geom_text(
+    aes(label = temp_day), 
+    hjust = 1,
+    vjust = 1.5) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Temperature chart (degrees Celsius)"
+  ) +
+  theme(
+    axis.text.x=element_blank(),
+    panel.grid.major.x = element_blank(), 
+    panel.grid.minor.x = element_blank(),
+    text = element_text(size = 10),
+    legend.position= "none")
+
+# combining both plots
+plot.both <- rbind(ggplotGrob(march_plot),
+                   ggplotGrob(temp_plot))
+
+grid::grid.newpage()
+grid::grid.draw(plot.both)
+```
+
+Description of code functionality (please see the below code chunk for line-by-line annotations of what each command/function performs as well as plain text annotations following the chunk).
+
+Sources:
+
+-   [R color cheatsheet](https://www.nceas.ucsb.edu/sites/default/files/2020-04/colorPaletteCheatsheet.pdf): used to identify closest colors to those in the original plot.
+
+-   [Re-Visions of Minard](https://www.datavis.ca/gallery/re-minard.php): used to source the `geom_pat h()` code, the English translation of the title and subtitle, and for the reference plot.
+
+-   [Remove grid and background from plot using ggplot2 in R](https://www.geeksforgeeks.org/remove-grid-and-background-from-plot-using-ggplot2-in-r/): used for the code to remove grid lines.
+
+-   [Remove all of x axis labels in ggplot \[duplicate\]](https://stackoverflow.com/questions/35090883/remove-all-of-x-axis-labels-in-ggplot): used for the removal of numerical x and y labels.
+
+-   [Exploring Minard’s 1812 plot with ggplot2](https://www.andrewheiss.com/blog/2017/08/10/exploring-minards-1812-plot-with-ggplot2/): used for the code to join the two plots as one.
+
+```{r q5-annotated}
+
+# plot the march
+march_plot <- ggplot(cities, aes(x = long, y = lat)) + # Establishes march_plot as an object that contains a ggplot. The ggplot is established using the cities dataframe, with longitude and latitude as the x and y variables.
+  geom_path(
+    aes(size = survivors, 
+        colour = direction, 
+        group = group), 
+    data = troops_wrangle,
+    lineend = "round" # Creates the first layer, a path that uses the troops dataframe and follows the direction of attack/retreat. Its thickness is established by the size function. The group function also determines attack versus retreat, however for the purpose of color differentiation. The lineend function smooths the gaps between the paths by making the paths rounded instead of rectangular. This is an aesthetic change I made myself to improve readability.
+  ) + 
+    geom_text(
+      aes(label = survivors), 
+      hjust = 1.5, 
+      vjust = 0, 
+      size = 2, 
+      data = troops_wrangle # This is the second layer, a text layer which labels the survivor count at points along the path layer, as denoted by the label = survivors. The subsequent adjustments are used to separate the label from the path itself by just a few pixels, and the size controls the font size of the labels (these are changes I made myself to increase aesethetics of the plot). The dataframe used here changes from the ggplot data, cities, which is why the data function is used here.
+    ) +
+  geom_point() + # Creates points at each of the cities
+  geom_text(
+    aes(label = city), 
+    hjust=1, 
+    vjust=1, 
+    size=3 # Creates labels for the cities at each of the points created in the above layer. Again, city labels are shifted for visibility and the size is shrunk to maintain proportionality (self-made changes).
+  ) + 
+  scale_colour_manual(values = c("black","bisque2")) + # Manually changes the colors of the paths. I made these changes personally.
+  scale_x_continuous(limits = c(24, 39)) + # Sets the limits of the x-axis scale from 24 to 39, thereby stretching out the path horizontally to better match the original.
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Map representing the losses over time of French army troops during the Russian campaign, 1812-1813.\nConstructed by Charles Joseph Minard, Inspector General of Public Works retired.",
+    subtitle = "Paris, 20 November 1869" # Sets all the labels in the plot, including nullifying the x and y axis labels which are not present in the original and adding the title and subtitle. I set these labels personally.
+  ) +
+  theme(
+    axis.text.x=element_blank(),
+    axis.text.y=element_blank(),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    text = element_text(size = 10),
+    legend.position= "none") + # Changes thematic elements. The first four functions eliminate labels and grid lines from the plot for a cleaner background. The fifth changes the font size of all text on the figure, and the last eliminates the legend.
+  scale_size(range = c(0.5, 10)) # Increases the scaling of the path so that each path is not disconnected.
+
+# plot the temperatures
+temp_plot <- ggplot(data = temps_wrangle, aes(x = long, y = temp)) + # Creates a different object for this separate figure, establishes the ggplot background layer which is utilizing the temps dataframe with longitude on the x-axis and temperature on the y-axis.
+  geom_line() + # Creates the line layer showing change in temperature over longitude.
+  geom_text(
+    aes(label = temp_day), 
+    hjust = 1,
+    vjust = 1.5) + # Adds a text layer to label the temperatures and dates on the graph. The temp_day is a wrangled/mutated column gluing temperature to date observations. Again, these labels are shifted off the line itself and decided by myself.
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Temperature chart (degrees Celsius)" # Eliminates x and y axis labels and sets the title of the plot. Labels set by myself.
+  ) +
+  theme(
+    axis.text.x=element_blank(),
+    panel.grid.major.x = element_blank(), 
+    panel.grid.minor.x = element_blank(),
+    text = element_text(size = 10),
+    legend.position= "none") # Sets thematic elements, in order: eliminates x axis labels, eliminates x axis major grid lines, eliminates x axis minor grid lines, sets font size for the entire plot, and eliminates the legend.
+
+# combining both plots
+plot.both <- rbind(ggplotGrob(march_plot),
+                   ggplotGrob(temp_plot)) # Creates a new object binding the two afore-created plots together.
+
+grid::grid.newpage() # Creates a new grid on which the binded plots can be drawn.
+# grid::grid.draw(plot.both) # Draws the binded plots onto the grid (command suppressed to not create the actual plot in this code chunk in the final Quarto submission.)
+```
+
+Annotations as plain text if more legible:
+
+\# plot the march
+
+march_plot \<- ggplot(cities, aes(x = long, y = lat)) + \# Establishes march_plot as an object that contains a ggplot. The ggplot is established using the cities dataframe, with longitude and latitude as the x and y variables.
+
+geom_path(
+
+aes(size = survivors,
+
+colour = direction,
+
+group = group),
+
+data = troops_wrangle,
+
+lineend = "round" \# Creates the first layer, a path that uses the troops dataframe and follows the direction of attack/retreat. Its thickness is established by the size function. The group function also determines attack versus retreat, however for the purpose of color differentiation. The lineend function smooths the gaps between the paths by making the paths rounded instead of rectangular. This is an aesthetic change I made myself to improve readability.
+
+) +
+
+geom_text(
+
+aes(label = survivors),
+
+hjust = 1.5,
+
+vjust = 0,
+
+size = 2,
+
+data = troops_wrangle \# This is the second layer, a text layer which labels the survivor count at points along the path layer, as denoted by the label = survivors. The subsequent adjustments are used to separate the label from the path itself by just a few pixels, and the size controls the font size of the labels (these are changes I made myself to increase aesethetics of the plot). The dataframe used here changes from the ggplot data, cities, which is why the data function is used here.
+
+) +
+
+geom_point() + \# Creates points at each of the cities
+
+geom_text(
+
+aes(label = city),
+
+hjust=1,
+
+vjust=1,
+
+size=3 \# Creates labels for the cities at each of the points created in the above layer. Again, city labels are shifted for visibility and the size is shrunk to maintain proportionality (self-made changes).
+
+) +
+
+scale_colour_manual(values = c("black","bisque2")) + \# Manually changes the colors of the paths. I made these changes personally.
+
+scale_x_continuous(limits = c(24, 39)) + \# Sets the limits of the x-axis scale from 24 to 39, thereby stretching out the path horizontally to better match the original.
+
+labs(
+
+x = NULL,
+
+y = NULL,
+
+title = "Map representing the losses over time of French army troops during the Russian campaign, 1812-1813.\\nConstructed by Charles Joseph Minard, Inspector General of Public Works retired.",
+
+subtitle = "Paris, 20 November 1869" \# Sets all the labels in the plot, including nullifying the x and y axis labels which are not present in the original and adding the title and subtitle. I set these labels personally.
+
+) +
+
+theme(
+
+axis.text.x=element_blank(),
+
+axis.text.y=element_blank(),
+
+panel.grid.major = element_blank(),
+
+panel.grid.minor = element_blank(),
+
+text = element_text(size = 10),
+
+legend.position= "none") + \# Changes thematic elements. The first four functions eliminate labels and grid lines from the plot for a cleaner background. The fifth changes the font size of all text on the figure, and the last eliminates the legend.
+
+scale_size(range = c(0.5, 10)) \# Increases the scaling of the path so that each path is not disconnected.
+
+\# plot the temperatures
+
+temp_plot \<- ggplot(data = temps_wrangle, aes(x = long, y = temp)) + \# Creates a different object for this separate figure, establishes the ggplot background layer which is utilizing the temps dataframe with longitude on the x-axis and temperature on the y-axis.
+
+geom_line() + \# Creates the line layer showing change in temperature over longitude.
+
+geom_text(
+
+aes(label = temp_day),
+
+hjust = 1,
+
+vjust = 1.5) + \# Adds a text layer to label the temperatures and dates on the graph. The temp_day is a wrangled/mutated column gluing temperature to date observations. Again, these labels are shifted off the line itself and decided by myself.
+
+labs(
+
+x = NULL,
+
+y = NULL,
+
+title = "Temperature chart (degrees Celsius)" \# Eliminates x and y axis labels and sets the title of the plot. Labels set by myself.
+
+) +
+
+theme(
+
+axis.text.x=element_blank(),
+
+panel.grid.major.x = element_blank(),
+
+panel.grid.minor.x = element_blank(),
+
+text = element_text(size = 10),
+
+legend.position= "none") \# Sets thematic elements, in order: eliminates x axis labels, eliminates x axis major grid lines, eliminates x axis minor grid lines, sets font size for the entire plot, and eliminates the legend.
+
+\# combining both plots
+
+plot.both \<- rbind(ggplotGrob(march_plot),
+
+ggplotGrob(temp_plot)) \# Creates a new object binding the two afore-created plots together.
+
+grid::grid.newpage() \# Creates a new grid on which the binded plots can be drawn.
+
+\# grid::grid.draw(plot.both) \# Draws the binded plots onto the grid (command suppressed to not create the actual plot in this code chunk in the final Quarto submission.)
